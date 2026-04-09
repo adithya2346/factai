@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1a1a2e;
+  --neon-cyan: #00f5ff;
+  --neon-purple: #bf5fff;
+  --neon-green: #39ff14;
+  --neon-red: #ff3131;
+  --neon-yellow: #ffe135;
+  --neon-orange: #ff6b35;
+  --text-primary: #e0e0e0;
+  --text-secondary: #8888aa;
+  --border: #2a2a3e;
+}
+
+@theme inline {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-tertiary: var(--bg-tertiary);
+  --color-neon-cyan: var(--neon-cyan);
+  --color-neon-purple: var(--neon-purple);
+  --color-neon-green: var(--neon-green);
+  --color-neon-red: var(--neon-red);
+  --color-neon-yellow: var(--neon-yellow);
+  --color-neon-orange: var(--neon-orange);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-cyan);
+}
+
+::selection {
+  background: var(--neon-cyan);
+  color: var(--bg-primary);
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.neon-glow-cyan {
+  box-shadow: 0 0 8px var(--neon-cyan), 0 0 20px rgba(0, 245, 255, 0.3);
+}
+.neon-glow-green {
+  box-shadow: 0 0 8px var(--neon-green), 0 0 20px rgba(57, 255, 20, 0.3);
+}
+.neon-glow-red {
+  box-shadow: 0 0 8px var(--neon-red), 0 0 20px rgba(255, 49, 49, 0.3);
+}
+.neon-glow-yellow {
+  box-shadow: 0 0 8px var(--neon-yellow), 0 0 20px rgba(255, 225, 53, 0.3);
+}
+.neon-glow-purple {
+  box-shadow: 0 0 8px var(--neon-purple), 0 0 20px rgba(191, 95, 255, 0.3);
+}
+
+@keyframes pulse-neon {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-neon {
+  animation: pulse-neon 1.5s ease-in-out infinite;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
