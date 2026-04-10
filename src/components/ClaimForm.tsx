@@ -114,11 +114,11 @@ export function ClaimForm() {
         onDrop={handleDrop}
         className={`
           relative border-2 border-dashed rounded-xl transition-all duration-300 cursor-pointer
-          ${uploadState === "idle" ? "border-[#2a2a3e] hover:border-[#00f5ff] bg-[#12121a]" : ""}
-          ${uploadState === "dragover" ? "border-[#00f5ff] bg-[#12121a] neon-glow-cyan animate-pulse-neon" : ""}
-          ${uploadState === "uploading" ? "border-[#bf5fff] bg-[#12121a]" : ""}
-          ${uploadState === "done" ? "border-[#39ff14] bg-[#12121a]" : ""}
-          ${uploadState === "error" ? "border-[#ff3131] bg-[#12121a]" : ""}
+          ${uploadState === "idle" ? "glass-panel border-glass-border hover:border-neon-cyan" : ""}
+          ${uploadState === "dragover" ? "glass-panel border-neon-cyan neon-glow-cyan animate-pulse-neon" : ""}
+          ${uploadState === "uploading" ? "glass-panel border-neon-purple" : ""}
+          ${uploadState === "done" ? "glass-panel border-neon-green" : ""}
+          ${uploadState === "error" ? "glass-panel border-neon-red" : ""}
         `}
       >
         <input
@@ -142,20 +142,20 @@ export function ClaimForm() {
         {uploadState === "done" && (
           <div className="flex items-center gap-4 p-4">
             {previewUrl && (
-              <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border border-[#2a2a3e]">
+              <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border border-glass-border">
                 <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); resetUpload(); }}
-                  className="absolute top-1 right-1 w-5 h-5 bg-[#ff3131] rounded-full text-white text-xs flex items-center justify-center"
+                  className="absolute top-1 right-1 w-5 h-5 bg-neon-red rounded-full text-white text-xs flex items-center justify-center neon-glow-red"
                 >
                   ✕
                 </button>
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-[#39ff14] text-sm font-medium truncate">{fileName}</p>
-              <p className="text-[#8888aa] text-xs mt-1">Claim extracted — edit below before verifying</p>
+              <p className="text-neon-cyan text-sm font-medium truncate">{fileName}</p>
+              <p className="text-text-secondary text-xs mt-1">Claim extracted — edit below before verifying</p>
             </div>
           </div>
         )}
@@ -192,7 +192,7 @@ export function ClaimForm() {
           value={claim}
           onChange={(e) => setClaim(e.target.value)}
           placeholder="Paste or type a claim to verify..."
-          className="w-full px-4 py-3 bg-[#12121a] border border-[#2a2a3e] rounded-lg focus:ring-2 focus:ring-[#00f5ff] focus:border-[#00f5ff] text-[#e0e0e0] placeholder-[#8888aa] resize-none transition-all"
+          className="w-full px-4 py-3 bg-bg-primary/50 glass-panel focus:ring-2 focus:ring-neon-cyan focus:border-neon-cyan text-white placeholder-text-secondary resize-none transition-all outline-none"
           rows={4}
           maxLength={2000}
           disabled={loading}
@@ -212,7 +212,7 @@ export function ClaimForm() {
         <button
           type="submit"
           disabled={loading || !claim.trim()}
-          className="px-6 py-3 bg-[#00f5ff] text-[#0a0a0f] rounded-lg font-bold hover:bg-[#00d4dd] disabled:opacity-40 disabled:cursor-not-allowed transition-all neon-glow-cyan"
+          className="px-8 py-3 bg-gradient-to-r from-neon-cyan to-neon-purple text-white rounded-xl font-bold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all neon-glow-cyan"
         >
           {loading ? "Verifying..." : "Verify Claim"}
         </button>

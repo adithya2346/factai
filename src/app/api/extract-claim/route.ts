@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
     }
 
-    // Save temp file
+    // write it to a temp path so we can parse it
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const ext = file.name.split(".").pop() ?? "bin";
@@ -38,34 +38,55 @@ export async function POST(request: Request) {
       const isImage = file.type.startsWith("image/");
 
       if (isImage) {
-        // Single image — vision analysis
+        // standard image upload - process through vision models
         const base64 = buffer.toString("base64");
         const mediaType = file.type === "image/png" ? "image/png" : "image/jpeg";
 
-        const message = await client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
-          messages: [{
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: { type: "base64", media_type: mediaType as "image/png" | "image/jpeg", data: base64 },
-              },
-              {
-                type: "text",
-                text: `You are an AI analyzing a screenshot or image for factual claims. Your task:
-1. OCR: Extract ALL visible text verbatim (headlines, captions, social media posts, article text, etc.)
-2. Describe: Summarize what factual claims, assertions, or statements are being made in this image
-3. If the image contains a meme, screenshot of a post, or article — identify what the "claim" is
+        let text = "";
 
-Return JSON: { "extractedText": "...", "claim": "...", "description": "..." }`,
-              },
-            ],
-          }],
-        });
+        if (process.env.GROQ_API_KEY) {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+            },
+            body: JSON.stringify({
+              model: "llama-3.2-90b-vision-preview",
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "text", text: `You are an AI analyzing a screenshot or image for factual claims. Your task:\n1. OCR: Extract ALL visible text verbatim\n2. Describe: Summarize what factual claims are being made\n3. If it contains a meme/screenshot — identify the "claim"\n\nReturn JSON: { "extractedText": "...", "claim": "...", "description": "..." }` },
+                  { type: "image_url", image_url: { url: `data:${mediaType};base64,${base64}` } }
+                ]
+              }],
+              temperature: 0,
+              response_format: { type: "json_object" }
+            })
+          });
+          const data = await res.json();
+          text = data.choices?.[0]?.message?.content || "";
+        } else if (process.env.ANTHROPIC_API_KEY) {
+          const message = await client.messages.create({
+            model: "claude-3-5-sonnet-20240620",
+            max_tokens: 1024,
+            messages: [{
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: { type: "base64", media_type: mediaType as "image/png" | "image/jpeg", data: base64 },
+                },
+                {
+                  type: "text",
+                  text: `You are an AI analyzing a screenshot or image for factual claims. Your task:\n1. OCR: Extract ALL visible text verbatim\n2. Describe: Summarize what factual claims are being made\n3. If it contains a meme/screenshot — identify the "claim"\n\nReturn JSON: { "extractedText": "...", "claim": "...", "description": "..." }`,
+                },
+              ],
+            }],
+          });
+          text = message.content[0].type === "text" ? message.content[0].text : "";
+        }
 
-        const text = message.content[0].type === "text" ? message.content[0].text : "";
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { extractedText: "", claim: text, description: "" };
 
@@ -75,8 +96,8 @@ Return JSON: { "extractedText": "...", "claim": "...", "description": "..." }`,
           description: parsed.description ?? "",
         });
       } else {
-        // Video — treat as image for now (sample the first frame)
-        // Client-side frame extraction would be needed for full video support
+        // user gave us a video. just grab the very first frame for now 
+        // to avoid doing heavy client-side ffmpeg stuff
         const firstFrameBase64 = buffer.toString("base64").slice(0, Math.min(buffer.toString("base64").length, 500000));
 
         const framePrompt = `Analyze this video frame. Describe what factual claims, assertions, or statements are being made.

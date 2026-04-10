@@ -27,6 +27,8 @@ const OLD_DATE_PATTERNS = [
   /\b(2020|2021|2022|2023)\b.*(?!\b202[56]\b)/,
 ];
 
+import Anthropic from "@anthropic-ai/sdk";
+
 export async function analyzeWithGemini(
   claim: string,
   _queries: Omit<SearchQuery, "results">[],
@@ -65,26 +67,64 @@ Respond STRICTLY in this JSON format (no markdown, no extra text):
   "recirculationNote": "..."
 }`;
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-  const result = await model.generateContent([prompt]);
-  const rawResponse = result.response.text();
+  let rawResponse = "";
 
-  // Parse JSON
+  if (process.env.GROQ_API_KEY) {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: "You are a factual JSON-only outputting fact checker." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0,
+        response_format: { type: "json_object" }
+      })
+    });
+    if (!res.ok) {
+      throw new Error(`Groq API error: ${await res.text()}`);
+    }
+    const data = await res.json();
+    rawResponse = data.choices[0].message.content || "";
+  } else if (process.env.ANTHROPIC_API_KEY) {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const msg = await anthropic.messages.create({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 1500,
+      temperature: 0,
+      system: "You are a factual JSON-only outputting fact checker.",
+      messages: [{ role: "user", content: prompt }]
+    });
+    rawResponse = msg.content[0].type === "text" ? msg.content[0].text : "";
+  } else {
+    // Fallback to gemini-2.5-flash
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await model.generateContent([prompt]);
+    rawResponse = result.response.text();
+  }
+
+  // try to parse the ai json response
   let parsed: Partial<AnalysisResult> = {};
   try {
     const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       parsed = JSON.parse(jsonMatch[0]);
     }
-  } catch {
-    // Fallback: create minimal structure
+  } catch (err) {
+    // whatever, if parsing fails just leave it empty
   }
 
-  // Auto-detect red flags from claim text
+  // quickly check for some obvious red flags by regexing the claim text
   const detectedRedFlags: RedFlag[] = [];
 
   if (SENSATIONAL_PATTERNS.some((p) => p.test(claim))) {
-    detectedRedFlags.push({ type: "sensational", text: "Sensational language detected in claim", severity: "high" });
+    detectedRedFlags.push({ type: "sensational", text: "used sensational language", severity: "high" });
   }
 
   if (EMOTIONAL_PATTERNS.some((p) => p.test(claim))) {
@@ -99,7 +139,7 @@ Respond STRICTLY in this JSON format (no markdown, no extra text):
     detectedRedFlags.push({ type: "no_attribution", text: "Claim lacks attribution to named source", severity: "high" });
   }
 
-  // Auto-classify source tiers and deduplicate
+  // automatically classify source tiers and get rid of dupes
   const allSources = searchResults.flatMap((q) =>
     q.results.map((r) => ({
       title: r.title,
@@ -110,10 +150,10 @@ Respond STRICTLY in this JSON format (no markdown, no extra text):
     }))
   );
 
-  const seen = new Set<string>();
+  const seenUrls = new Set<string>();
   const dedupedSources = allSources.filter((s) => {
-    if (seen.has(s.url)) return false;
-    seen.add(s.url);
+    if (seenUrls.has(s.url)) return false;
+    seenUrls.add(s.url);
     return true;
   });
 
